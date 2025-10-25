@@ -14,13 +14,12 @@ def test_model(model, tokenizer, prompt):
     print(f"\n💬 프롬프트: {prompt}")
     print("🤖 응답: ", end="", flush=True)
     
-    # 응답 생성
+    # 응답 생성 (MLX-LM 최신 API 사용)
     response = generate(
         model,
         tokenizer,
         prompt=prompt,
         max_tokens=100,
-        temp=0.7,
         verbose=False
     )
     

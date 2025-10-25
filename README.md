@@ -48,33 +48,21 @@ yhnanollm/
 ### Step 2: LoRA 파인튜닝
 
 ```bash
-# 기본 설정으로 학습
+# 1단계: 데이터 준비
 python scripts/finetune.py
 
-# 커스텀 설정으로 학습
-python scripts/finetune.py \
-  --model mlx-community/TinyLlama-1.1B-Chat-v1.0 \
-  --data data/data-mini.json \
-  --output models/lora-adapter \
-  --iters 100 \
-  --learning-rate 1e-5 \
-  --lora-rank 8 \
-  --batch-size 2
-```
-
-**실제 학습 실행 (MLX-LM CLI 사용, 토큰 불필요)**:
-
-```bash
-# 토큰 없이 공개 모델 다운로드 및 학습
+# 2단계: 실제 학습 실행 (토큰 불필요!)
 mlx_lm.lora \
   --model mlx-community/Llama-3.2-1B-Instruct-4bit \
   --train \
-  --data models/lora-adapter/train.jsonl \
+  --data data \
   --iters 100 \
   --learning-rate 1e-5 \
   --batch-size 2 \
   --adapter-path models/lora-adapter
 ```
+
+학습은 약 2-5분 소요됩니다. 완료되면 `models/lora-adapter/`에 어댑터 파일이 생성됩니다.
 
 ### Step 3: LoRA 어댑터 병합
 
