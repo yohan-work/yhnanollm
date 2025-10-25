@@ -68,22 +68,27 @@ def main():
     print(f"  - LoRA Rank: {args.lora_rank}")
     print(f"  - Batch Size: {args.batch_size}")
     
-    # 데이터를 임시 파일로 저장 (MLX-LM이 요구하는 형식)
-    temp_data_path = Path(args.output) / "train.jsonl"
-    with open(temp_data_path, 'w', encoding='utf-8') as f:
-        for item in train_data:
-            f.write(json.dumps(item, ensure_ascii=False) + '\n')
+    # 데이터를 저장 (MLX-LM이 요구하는 형식: train.jsonl, valid.jsonl, test.jsonl)
+    data_dir = Path("data")
+    data_dir.mkdir(exist_ok=True)
     
-    print(f"\n💡 MLX-LM CLI를 사용하여 학습을 시작합니다:")
-    print(f"   mlx_lm.lora \\")
+    # train, valid, test 데이터 생성 (작은 데이터셋이므로 같은 데이터 사용)
+    for split in ["train", "valid", "test"]:
+        split_path = data_dir / f"{split}.jsonl"
+        with open(split_path, 'w', encoding='utf-8') as f:
+            for item in train_data:
+                f.write(json.dumps(item, ensure_ascii=False) + '\n')
+        print(f"✅ {split}.jsonl 생성 완료")
+    
+    print(f"\n💡 이제 이 명령어로 학습을 시작하세요:")
+    print(f"\n   mlx_lm.lora \\")
     print(f"     --model {args.model} \\")
     print(f"     --train \\")
-    print(f"     --data {temp_data_path} \\")
+    print(f"     --data data \\")
     print(f"     --iters {args.iters} \\")
     print(f"     --learning-rate {args.learning_rate} \\")
     print(f"     --batch-size {args.batch_size} \\")
     print(f"     --adapter-path {args.output}")
-    print(f"\n   # LoRA rank는 config로 설정하거나 기본값(8) 사용")
     
     print("\n" + "="*60)
     print("⚠️  실제 학습을 위해 위 명령어를 터미널에서 실행하세요.")
