@@ -129,3 +129,11 @@ mlx_lm.generate \
 
 - 5개 샘플, 100 iterations: 약 2-5분 (M3 Pro 기준)
 - 더 많은 데이터와 iterations를 사용할 경우 시간이 증가합니다
+
+### example prompt
+
+mlx_lm.generate \
+ --model mlx-community/Llama-3.2-1B-Instruct-4bit \
+ --adapter-path models/lora-adapter \
+ --prompt "### Instruction:\n[질문]\n### Response:" \
+ --max-tokens 50
