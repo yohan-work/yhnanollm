@@ -1,16 +1,16 @@
 # yhnanollm v1.0.0-beta
+
 <img width="956" height="876" alt="스크린샷 2025-10-27 오전 10 29 52" src="https://github.com/user-attachments/assets/0b95ca6a-eca8-4d20-aa6d-82bdef39c009" />
 
-
-MLX 기반 한국어 파인튜닝
-Apple Silicon (M3 Pro) 최적화된 TinyLlama 모델 LoRA 파인튜닝
+MLX 기반 한국어 파인튜닝 + RAG (문서 기반 질의응답)
+Apple Silicon (M3 Pro) 최적화된 로컬 LLM
 
 ## 프로젝트 개요
 
 - **베이스 모델**: `mlx-community/Llama-3.2-1B-Instruct-4bit`
-- **방법론**: LoRA (Low-Rank Adaptation)
+- **방법론**: LoRA (Low-Rank Adaptation) + RAG (Retrieval-Augmented Generation)
 - **데이터 형식**: Alpaca JSON
-- **목표**: 짧은 한국어 응답 파인튜닝 테스트
+- **목표**: 짧은 한국어 응답 파인튜닝 + PDF 문서 기반 질의응답
 
 ## 프로젝트 구조
 
@@ -23,8 +23,13 @@ yhnanollm/
 ├── scripts/
 │   ├── finetune.py             # LoRA 파인튜닝 스크립트
 │   └── merge_and_test.py       # 어댑터 병합 및 테스트 스크립트
+├── rag/                        # RAG 모듈 (NEW!)
+│   ├── __init__.py
+│   ├── document_processor.py  # PDF 처리 및 청킹
+│   ├── vector_store.py        # ChromaDB 벡터 DB
+│   └── rag_chain.py           # RAG 로직
 ├── chat.py                     # CLI 대화형 인터페이스
-├── app.py                      # Gradio 웹 인터페이스
+├── app.py                      # Gradio 웹 인터페이스 with RAG
 ├── requirements.txt            # Python 의존성
 ├── .gitignore
 └── README.md
@@ -44,20 +49,27 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 방법 1: 웹 인터페이스 (추천)
+### 방법 1: Web Interface with RAG
 
 ```bash
 # 가상환경 활성화
 source venv/bin/activate
-
-# Gradio 설치 (처음 한 번만)
-pip install gradio
 
 # 웹 UI 시작
 python app.py
 ```
 
 브라우저에서 **http://localhost:7860** 을 열면 채팅 UI가 나타납니다!
+
+- **PDF 업로드**: 문서를 업로드하여 내용 기반 질의응답
+- **RAG 모드**: 문서 참고 ON/OFF 토글
+- **문서 관리**: 업로드된 문서 확인 및 삭제
+
+**사용 방법**:
+
+1. PDF 파일 업로드
+2. "RAG 모드 (문서 참고)" 체크박스 활성화
+3. 문서 내용에 대해 질문하기!
 
 ### 방법 2: CLI 터미널
 
@@ -198,3 +210,23 @@ mlx_lm.generate \
 
 - 35개 샘플, 200 iterations: 약 4-5분 (M3 Pro 기준)
 - 더 많은 데이터와 iterations를 사용할 경우 시간이 증가합니다
+
+### RAG 기술 스택
+
+- **ChromaDB**: 로컬 벡터 데이터베이스 (문서 저장)
+- **sentence-transformers**: 텍스트 임베딩 모델
+- **PyPDF2**: PDF 텍스트 추출
+- **청킹**: 문서를 500자 단위로 분할하여 저장
+
+### 문서 관리
+
+- **업로드**: PDF 파일 선택하여 업로드
+- **확인**: "문서 정보"에서 저장된 청크 수 확인
+- **삭제**: "모든 문서 삭제" 버튼으로 DB 초기화
+
+### 예상 사용 사례
+
+1. **기술 문서 QA**: 제품 매뉴얼, API 문서
+2. **보고서 요약**: 회사 보고서, 논문
+3. **교육 자료**: 교과서, 강의 자료
+4. **내부 지식베이스**: 사내 규정, 가이드
