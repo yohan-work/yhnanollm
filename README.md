@@ -21,7 +21,8 @@ yhnanollm/
 ├── scripts/
 │   ├── finetune.py             # LoRA 파인튜닝 스크립트
 │   └── merge_and_test.py       # 어댑터 병합 및 테스트 스크립트
-├── chat.py                     # 대화형 채팅 인터페이스
+├── chat.py                     # CLI 대화형 인터페이스
+├── app.py                      # Gradio 웹 인터페이스
 ├── requirements.txt            # Python 의존성
 ├── .gitignore
 └── README.md
@@ -41,15 +42,28 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-## 빠른 시작 (CLI)
-
-학습이 완료되었다면 바로 대화를 시작하세요!
+### 방법 1: 웹 인터페이스 (추천)
 
 ```bash
 # 가상환경 활성화
 source venv/bin/activate
 
-# 채팅 시작!
+# Gradio 설치 (처음 한 번만)
+pip install gradio
+
+# 웹 UI 시작
+python app.py
+```
+
+브라우저에서 **http://localhost:7860** 을 열면 채팅 UI가 나타납니다!
+
+### 방법 2: CLI 터미널
+
+```bash
+# 가상환경 활성화
+source venv/bin/activate
+
+# CLI 채팅 시작
 python chat.py
 ```
 
