@@ -1,6 +1,6 @@
 # yhnanollm v1.0.0-beta
 
-<img width="956" height="876" alt="스크린샷 2025-10-27 오전 10 29 52" src="https://github.com/user-attachments/assets/0b95ca6a-eca8-4d20-aa6d-82bdef39c009" />
+<img width="1177" height="874" alt="스크린샷 2025-10-27 오후 2 42 34" src="https://github.com/user-attachments/assets/18b0fdbd-59b5-4cc8-b1f0-0ac78d2dc2bc" />
 
 MLX 기반 한국어 파인튜닝 + RAG (문서 기반 질의응답)
 Apple Silicon (M3 Pro) 최적화된 로컬 LLM
