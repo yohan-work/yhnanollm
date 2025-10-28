@@ -97,6 +97,85 @@ class VectorStore:
         """
         return self.collection.count()
     
+    def get_all_filenames(self) -> List[str]:
+        """
+        저장된 모든 파일명 목록 반환
+        
+        Returns:
+            파일명 리스트 (중복 제거)
+        """
+        if self.collection.count() == 0:
+            return []
+        
+        # 모든 메타데이터 가져오기
+        results = self.collection.get()
+        if not results['metadatas']:
+            return []
+        
+        # 파일명 추출 및 중복 제거
+        filenames = set()
+        for meta in results['metadatas']:
+            if 'filename' in meta:
+                filenames.add(meta['filename'])
+        
+        return sorted(list(filenames))
+    
+    def get_documents_by_filename(self, filename: str) -> Dict:
+        """
+        특정 파일의 모든 청크 조회
+        
+        Args:
+            filename: 파일명
+            
+        Returns:
+            해당 파일의 청크 정보
+        """
+        if self.collection.count() == 0:
+            return {'ids': [], 'documents': [], 'metadatas': []}
+        
+        # 전체 조회 후 필터링
+        results = self.collection.get()
+        
+        filtered_ids = []
+        filtered_docs = []
+        filtered_metas = []
+        
+        for idx, meta in enumerate(results['metadatas']):
+            if meta.get('filename') == filename:
+                filtered_ids.append(results['ids'][idx])
+                filtered_docs.append(results['documents'][idx])
+                filtered_metas.append(meta)
+        
+        return {
+            'ids': filtered_ids,
+            'documents': filtered_docs,
+            'metadatas': filtered_metas
+        }
+    
+    def delete_document_by_filename(self, filename: str) -> int:
+        """
+        특정 파일의 모든 청크 삭제
+        
+        Args:
+            filename: 파일명
+            
+        Returns:
+            삭제된 청크 수
+        """
+        # 해당 파일의 모든 청크 조회
+        doc_data = self.get_documents_by_filename(filename)
+        
+        if not doc_data['ids']:
+            return 0
+        
+        # 청크 삭제
+        self.collection.delete(ids=doc_data['ids'])
+        
+        deleted_count = len(doc_data['ids'])
+        print(f"파일 '{filename}' 삭제: {deleted_count}개 청크")
+        
+        return deleted_count
+    
     def clear(self) -> None:
         """
         모든 문서 삭제

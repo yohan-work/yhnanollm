@@ -7,17 +7,19 @@ from typing import Optional
 
 
 class RAGChain:
-    def __init__(self, vector_store, llm_chat, top_k: int = 3):
+    def __init__(self, vector_store, llm_chat, document_manager=None, top_k: int = 3):
         """
         RAG 체인 초기화
         
         Args:
             vector_store: VectorStore 인스턴스
             llm_chat: LocalLLMChat 인스턴스
+            document_manager: DocumentManager 인스턴스 (선택)
             top_k: 검색할 문서 수
         """
         self.vector_store = vector_store
         self.llm_chat = llm_chat
+        self.document_manager = document_manager
         self.top_k = top_k
     
     def format_prompt_with_context(self, question: str, context: str) -> str:
@@ -94,6 +96,16 @@ class RAGChain:
             # 관련 문서를 찾지 못함 - 기본 모드로 폴백
             answer = self.llm_chat.chat(question)
             return answer, None
+        
+        # 검색 통계 업데이트 (DocumentManager가 있는 경우)
+        if self.document_manager and metadatas:
+            # 사용된 문서의 검색 횟수 증가
+            used_files = set()
+            for meta in metadatas:
+                filename = meta.get('filename')
+                if filename and filename not in used_files:
+                    self.document_manager.increment_search_count(filename)
+                    used_files.add(filename)
         
         # 컨텍스트 포함 프롬프트 생성
         prompt = self.format_prompt_with_context(question, context)

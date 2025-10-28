@@ -6,6 +6,7 @@ yhnanollm RAG 모듈
 from .document_processor import DocumentProcessor
 from .vector_store import VectorStore
 from .rag_chain import RAGChain
+from .document_manager import DocumentManager
 
-__all__ = ['DocumentProcessor', 'VectorStore', 'RAGChain']
+__all__ = ['DocumentProcessor', 'VectorStore', 'RAGChain', 'DocumentManager']
 

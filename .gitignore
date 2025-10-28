@@ -58,4 +58,5 @@ temp/
 # RAG
 uploads/
 chroma_db/
+doc_metadata.json
 
