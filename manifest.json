@@ -1,0 +1,10 @@
+{
+  "name": "yhnanollm",
+  "short_name": "yhnanollm",
+  "description": "로컬 LLM + RAG",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": []
+}
