@@ -107,44 +107,62 @@ class RAGChain:
         Returns:
             (답변, 사용된 문서 메타데이터, 검색 통계)
         """
-        if not use_rag or self.vector_store.get_document_count() == 0:
-            # RAG 미사용 또는 문서 없음 - 기본 모드
-            answer = self.llm_chat.chat(question)
-            return answer, None, None
-        
-        # 관련 문서 검색
-        context, metadatas, distances = self.search_documents(question)
-        
-        if context is None:
-            # 관련 문서를 찾지 못함 - 기본 모드로 폴백
-            answer = self.llm_chat.chat(question)
-            return answer, None, {'reason': 'no_similar_documents'}
-        
-        # 검색 통계 생성
-        search_stats = {
-            'documents_found': len(metadatas),
-            'avg_distance': sum(distances) / len(distances) if distances else 0,
-            'prompt_template': self.prompt_template,
-            'top_k': self.top_k
-        }
-        
-        # 검색 통계 업데이트 (DocumentManager가 있는 경우)
-        if self.document_manager and metadatas:
-            # 사용된 문서의 검색 횟수 증가
-            used_files = set()
-            for meta in metadatas:
-                filename = meta.get('filename')
-                if filename and filename not in used_files:
-                    self.document_manager.increment_search_count(filename)
-                    used_files.add(filename)
-        
-        # 컨텍스트 포함 프롬프트 생성
-        prompt = self.format_prompt_with_context(question, context)
-        
-        # LLM으로 답변 생성
-        answer = self.llm_chat.chat(prompt)
-        
-        return answer, metadatas, search_stats
+        try:
+            print(f"\n[RAG] 답변 생성 시작 - RAG 모드: {use_rag}")
+            
+            if not use_rag or self.vector_store.get_document_count() == 0:
+                # RAG 미사용 또는 문서 없음 - 기본 모드
+                print(f"[RAG] 기본 모드로 답변 생성")
+                answer = self.llm_chat.chat(question)
+                return answer, None, None
+            
+            # 관련 문서 검색
+            print(f"[RAG] 문서 검색 중... (top_k={self.top_k})")
+            context, metadatas, distances = self.search_documents(question)
+            
+            if context is None:
+                # 관련 문서를 찾지 못함 - 기본 모드로 폴백
+                print(f"[RAG] 관련 문서 없음 - 기본 모드로 폴백")
+                answer = self.llm_chat.chat(question)
+                return answer, None, {'reason': 'no_similar_documents'}
+            
+            print(f"[RAG] {len(metadatas)}개 문서 찾음")
+            
+            # 검색 통계 생성
+            search_stats = {
+                'documents_found': len(metadatas),
+                'avg_distance': sum(distances) / len(distances) if distances else 0,
+                'prompt_template': self.prompt_template,
+                'top_k': self.top_k
+            }
+            
+            # 검색 통계 업데이트 (DocumentManager가 있는 경우)
+            if self.document_manager and metadatas:
+                # 사용된 문서의 검색 횟수 증가
+                used_files = set()
+                for meta in metadatas:
+                    filename = meta.get('filename')
+                    if filename and filename not in used_files:
+                        self.document_manager.increment_search_count(filename)
+                        used_files.add(filename)
+            
+            # 컨텍스트 포함 프롬프트 생성
+            print(f"[RAG] 프롬프트 생성 중...")
+            prompt = self.format_prompt_with_context(question, context)
+            print(f"[RAG] 프롬프트 길이: {len(prompt)} 문자")
+            
+            # LLM으로 답변 생성 (이미 포맷된 프롬프트 사용)
+            print(f"[RAG] LLM 답변 생성 중...")
+            answer = self.llm_chat.chat(prompt, skip_format=True)
+            print(f"[RAG] 답변 생성 완료")
+            
+            return answer, metadatas, search_stats
+            
+        except Exception as e:
+            import traceback
+            error_detail = traceback.format_exc()
+            print(f"\n[RAG] ❌ 오류 발생:\n{error_detail}")
+            return f"❌ RAG 오류: {str(e)}", None, None
     
     def update_config(
         self, 
