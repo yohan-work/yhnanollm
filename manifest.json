@@ -1,7 +1,7 @@
 {
   "name": "yhnanollm",
   "short_name": "yhnanollm",
-  "description": "로컬 LLM + RAG",
+  "description": "v1.0.0-beta",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
