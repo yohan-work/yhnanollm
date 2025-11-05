@@ -74,44 +74,70 @@ def upload_pdf(file):
         return "파일을 선택해주세요.", get_document_table(), get_doc_list()
     
     try:
+        print(f"\n{'='*60}")
+        print(f"PDF 업로드 시작")
+        print(f"{'='*60}")
+        
         # 파일 저장
         upload_dir = Path("uploads")
         upload_dir.mkdir(exist_ok=True)
         
-        file_path = Path(file.name)
+        file_path = Path(file)
         dest_path = upload_dir / file_path.name
         
+        print(f"파일 복사: {file_path.name}")
+        
         # 파일 크기 확인
-        file_size = Path(file.name).stat().st_size
+        file_size = file_path.stat().st_size
+        file_size_mb = file_size / (1024 * 1024)
+        print(f" 파일 크기: {file_size_mb:.2f} MB")
         
         # 파일 복사
-        shutil.copy(file.name, dest_path)
+        shutil.copy(file, dest_path)
+        print(f"   ✓ 복사 완료")
         
         # PDF 처리
+        print(f"\n  PDF 텍스트 추출 중...")
         chunks = doc_processor.process_pdf(str(dest_path))
+        print(f"   ✓ 생성된 청크: {len(chunks)}개")
         
         # 벡터 DB에 저장
+        print(f"\n 임베딩 생성 및 저장 중...")
+        print(f"   ⏳ 잠시만 기다려주세요 (청크가 많으면 시간이 걸릴 수 있습니다)")
         vector_store.add_documents(chunks)
+        print(f"   ✓ 벡터 DB 저장 완료")
         
         # 메타데이터 저장
+        print(f"\n 메타데이터 저장")
         doc_manager.add_document(
             filename=file_path.name,
             file_size=file_size,
             chunk_count=len(chunks)
         )
-        
-        doc_count = vector_store.get_document_count()
+        print(f"   ✓ 메타데이터 저장 완료")
         
         status_msg = (
-            f"✅ 업로드 완료: {file_path.name}\n"
-            f"📊 청크 수: {len(chunks)}개\n"
-            f"💾 총 문서: {doc_manager.get_document_count()}개"
+            f"업로드 완료: {file_path.name}\n"
+            f"청크 수: {len(chunks)}개\n"
+            f"파일 크기: {file_size_mb:.2f} MB\n"
+            f"총 문서: {doc_manager.get_document_count()}개"
         )
+        
+        print(f"\n{'='*60}")
+        print(f"✅ 업로드 완료!")
+        print(f"{'='*60}\n")
         
         return status_msg, get_document_table(), get_doc_list()
     
     except Exception as e:
-        return f"❌ 업로드 실패: {str(e)}", get_document_table(), get_doc_list()
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"\n{'='*60}")
+        print(f"업로드 오류:")
+        print(f"{'='*60}")
+        print(error_detail)
+        print(f"{'='*60}\n")
+        return f"업로드 실패: {str(e)}", get_document_table(), get_doc_list()
 
 
 def chat_with_rag(message, history, use_rag):
@@ -120,8 +146,15 @@ def chat_with_rag(message, history, use_rag):
         return history, "", ""
     
     try:
+        print(f"\n{'='*60}")
+        print(f"[채팅] 새 메시지: {message}")
+        print(f"[채팅] RAG 모드: {use_rag}")
+        print(f"{'='*60}")
+        
         # RAG 모드에 따라 답변 생성
         answer, sources, stats = rag_chain.answer(message, use_rag=use_rag)
+        
+        print(f"[채팅] 답변 받음: {answer[:100]}...")
         
         # 히스토리에 추가
         history.append((message, answer))
@@ -135,12 +168,21 @@ def chat_with_rag(message, history, use_rag):
 • 프롬프트: {stats.get('prompt_template', 'N/A')}
 • Top-K: {stats.get('top_k', 0)}"""
         
+        print(f"[채팅] 완료\n")
         return history, "", stats_text
     
     except Exception as e:
-        error_msg = f"❌ 오류: {str(e)}"
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"\n{'='*60}")
+        print(f"[채팅] ❌ 오류 발생:")
+        print(f"{'='*60}")
+        print(error_detail)
+        print(f"{'='*60}\n")
+        
+        error_msg = f"❌ 오류: {str(e)}\n\n자세한 내용은 터미널 로그를 확인하세요."
         history.append((message, error_msg))
-        return history, "", ""
+        return history, "", f"오류 발생: {str(e)}"
 
 
 def get_document_table():
@@ -329,7 +371,7 @@ def create_interface():
     """
     
     with gr.Blocks(theme=gr.themes.Soft(), css=custom_css) as interface:
-        gr.Markdown("# 🤖 yhnanollm - RAG 파라미터 튜닝")
+        gr.Markdown("# 🤖 yhnanollm")
         gr.Markdown("로컬 LLM + 문서 기반 질의응답 | 실시간 파라미터 조정")
         
         with gr.Tabs():
@@ -566,7 +608,7 @@ def create_interface():
             outputs=[chatbot, search_stats]
         )
         
-        file_upload.change(
+        file_upload.upload(
             upload_pdf,
             inputs=file_upload,
             outputs=[upload_status, doc_table, doc_selector]
