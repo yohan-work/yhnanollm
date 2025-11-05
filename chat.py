@@ -38,9 +38,18 @@ class LocalLLMChat:
         """프롬프트 포맷팅"""
         return f"### Instruction:\n{user_input}\n### Response:"
     
-    def chat(self, user_input):
-        """사용자 입력에 대한 응답 생성"""
-        prompt = self.format_prompt(user_input)
+    def chat(self, user_input, skip_format=False):
+        """사용자 입력에 대한 응답 생성
+        
+        Args:
+            user_input: 사용자 입력 또는 이미 포맷된 프롬프트
+            skip_format: True면 포맷팅을 건너뛰고 user_input을 그대로 사용
+        """
+        # RAG에서 이미 포맷된 프롬프트를 받은 경우 포맷팅 건너뛰기
+        if skip_format:
+            prompt = user_input
+        else:
+            prompt = self.format_prompt(user_input)
         
         try:
             response = generate(
@@ -57,6 +66,9 @@ class LocalLLMChat:
             return response
             
         except Exception as e:
+            import traceback
+            error_detail = traceback.format_exc()
+            print(f"❌ LLM 생성 오류:\n{error_detail}")
             return f"❌ 오류: {e}"
     
     def show_history(self):
