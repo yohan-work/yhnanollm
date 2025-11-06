@@ -29,7 +29,7 @@ class RAGConfig:
     
     # LLM 설정
     max_tokens: int = 150
-    temperature: float = 0.7
+    temperature: float = 0.3
     
     # 기타 설정
     persist_directory: str = "chroma_db"
