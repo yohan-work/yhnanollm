@@ -7,14 +7,18 @@ yhnanollm v1.0.0-beta - CLI 대화형 인터페이스
 import argparse
 import sys
 from pathlib import Path
-from mlx_lm import load, generate
+from mlx_lm import load, stream_generate
+from mlx_lm.sample_utils import make_sampler, make_logits_processors
 
 
 class LocalLLMChat:
-    def __init__(self, model_path, adapter_path=None, max_tokens=100):
+    def __init__(self, model_path, adapter_path=None, max_tokens=100, temperature=0.3, repetition_penalty=1.1, top_p=0.9):
         self.model_path = model_path
         self.adapter_path = adapter_path
         self.max_tokens = max_tokens
+        self.temperature = temperature
+        self.repetition_penalty = repetition_penalty
+        self.top_p = top_p
         self.model = None
         self.tokenizer = None
         self.history = []
@@ -36,7 +40,7 @@ class LocalLLMChat:
     
     def format_prompt(self, user_input):
         """프롬프트 포맷팅"""
-        return f"### Instruction:\n{user_input}\n### Response:"
+        return f"### Instruction:\n{user_input}\n\n반드시 순수 한국어로만 답변하세요. 다른 언어를 절대 사용하지 마세요.\n### Response:"
     
     def chat(self, user_input, skip_format=False):
         """사용자 입력에 대한 응답 생성
@@ -52,13 +56,23 @@ class LocalLLMChat:
             prompt = self.format_prompt(user_input)
         
         try:
-            response = generate(
+            # sampler와 logits_processors 생성
+            sampler = make_sampler(temp=self.temperature, top_p=self.top_p)
+            logits_processors = make_logits_processors(repetition_penalty=self.repetition_penalty)
+            
+            # stream_generate 사용하여 응답 생성
+            response_parts = []
+            for response_obj in stream_generate(
                 self.model,
                 self.tokenizer,
                 prompt=prompt,
                 max_tokens=self.max_tokens,
-                verbose=False
-            )
+                sampler=sampler,
+                logits_processors=logits_processors
+            ):
+                response_parts.append(response_obj.text)
+            
+            response = "".join(response_parts)
             
             # 히스토리에 저장
             self.history.append({"user": user_input, "assistant": response})

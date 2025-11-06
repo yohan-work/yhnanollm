@@ -44,7 +44,10 @@ def initialize_system(config: RAGConfig = None):
     llm_chat = LocalLLMChat(
         model_path=model_path,
         adapter_path=adapter_path,
-        max_tokens=config.max_tokens
+        max_tokens=config.max_tokens,
+        temperature=config.temperature,
+        repetition_penalty=1.1,
+        top_p=0.9
     )
     llm_chat.load_model()
     print("모델 준비 완료!")
