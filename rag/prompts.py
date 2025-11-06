@@ -30,6 +30,7 @@ class PromptTemplate:
 def default_template(context: str, question: str) -> str:
     """기본 프롬프트 (현재 사용 중)"""
     return f"""다음 문서 내용을 참고해서 질문에 답변해주세요.
+반드시 순수 한국어로만 답변하세요. 다른 언어를 절대 사용하지 마세요.
 
 문서 내용:
 {context}
@@ -48,6 +49,7 @@ def detailed_template(context: str, question: str) -> str:
 2. 답변은 명확하고 간결하게 작성하세요
 3. 문서에서 답을 찾을 수 없다면 "문서에서 해당 정보를 찾을 수 없습니다"라고 답하세요
 4. 가능한 경우 출처(페이지, 섹션)를 명시하세요
+5. 반드시 순수 한국어로만 답변하세요. 다른 언어를 절대 사용하지 마세요.
 
 [참고 문서]
 {context}
@@ -61,6 +63,7 @@ def detailed_template(context: str, question: str) -> str:
 def step_by_step_template(context: str, question: str) -> str:
     """단계별 추론형 프롬프트 - 복잡한 질문에 적합"""
     return f"""다음 문서를 읽고 질문에 단계별로 답변해주세요.
+반드시 순수 한국어로만 답변하세요. 다른 언어를 절대 사용하지 마세요.
 
 [문서 내용]
 {context}
@@ -79,6 +82,7 @@ def step_by_step_template(context: str, question: str) -> str:
 def concise_template(context: str, question: str) -> str:
     """간결형 프롬프트 - 짧고 빠른 답변"""
     return f"""문서를 참고하여 질문에 간단명료하게 답변하세요.
+반드시 순수 한국어로만 답변하세요. 다른 언어를 절대 사용하지 마세요.
 
 문서: {context}
 
@@ -90,6 +94,7 @@ def concise_template(context: str, question: str) -> str:
 def source_aware_template(context: str, question: str) -> str:
     """출처 강조형 프롬프트 - 출처 표시 강화"""
     return f"""제공된 문서를 기반으로 질문에 답변하고, 답변의 출처를 명시해주세요.
+반드시 순수 한국어로만 답변하세요. 다른 언어를 절대 사용하지 마세요.
 
 [참고 문서]
 {context}
@@ -107,6 +112,7 @@ def source_aware_template(context: str, question: str) -> str:
 def korean_optimized_template(context: str, question: str) -> str:
     """한국어 최적화 프롬프트"""
     return f"""아래 문서 내용을 바탕으로 질문에 정확하고 자연스러운 한국어로 답변해주세요.
+반드시 순수 한국어로만 답변하세요. 영어, 베트남어, 태국어 등 다른 언어를 절대 사용하지 마세요.
 
 【문서】
 {context}
@@ -120,6 +126,7 @@ def korean_optimized_template(context: str, question: str) -> str:
 def educational_template(context: str, question: str) -> str:
     """교육용 프롬프트 - 설명형 답변"""
     return f"""학생에게 설명하듯이 문서 내용을 바탕으로 친절하게 답변해주세요.
+반드시 순수 한국어로만 답변하세요. 다른 언어를 절대 사용하지 마세요.
 
 [학습 자료]
 {context}
@@ -133,6 +140,7 @@ def educational_template(context: str, question: str) -> str:
 def analytical_template(context: str, question: str) -> str:
     """분석형 프롬프트 - 심층 분석"""
     return f"""문서 내용을 분석하여 질문에 대한 종합적인 답변을 제공해주세요.
+반드시 순수 한국어로만 답변하세요. 다른 언어를 절대 사용하지 마세요.
 
 [분석 대상 문서]
 {context}
