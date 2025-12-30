@@ -71,14 +71,14 @@ def initialize_system(config: RAGConfig = None):
     print("RAG 시스템 준비 완료!")
 
 
-def upload_pdf(file):
-    """PDF 파일 업로드 및 처리"""
+def upload_file(file):
+    """파일 업로드 및 처리"""
     if file is None:
         return "파일을 선택해주세요.", get_document_table(), get_doc_list()
     
     try:
         print(f"\n{'='*60}")
-        print(f"PDF 업로드 시작")
+        print(f"문서 업로드 시작")
         print(f"{'='*60}")
         
         # 파일 저장
@@ -99,9 +99,9 @@ def upload_pdf(file):
         shutil.copy(file, dest_path)
         print(f"   ✓ 복사 완료")
         
-        # PDF 처리
-        print(f"\n  PDF 텍스트 추출 중...")
-        chunks = doc_processor.process_pdf(str(dest_path))
+        # 문서 처리
+        print(f"\n  텍스트 추출 중...")
+        chunks = doc_processor.process_document(str(dest_path))
         print(f"   ✓ 생성된 청크: {len(chunks)}개")
         
         # 벡터 DB에 저장
@@ -420,8 +420,8 @@ def create_interface():
                         
                         # 파일 업로드
                         file_upload = gr.File(
-                            label="PDF 업로드",
-                            file_types=[".pdf"],
+                            label="문서 업로드 (PDF, TXT, DOCX)",
+                            file_types=[".pdf", ".txt", ".docx"],
                             type="filepath"
                         )
                         
@@ -612,7 +612,7 @@ def create_interface():
         )
         
         file_upload.upload(
-            upload_pdf,
+            upload_file,
             inputs=file_upload,
             outputs=[upload_status, doc_table, doc_selector]
         )
@@ -704,7 +704,7 @@ def main():
     print("🚀 yhnanollm with RAG 시작!")
     print("="*60)
     print("브라우저에서 http://localhost:7860 을 열어주세요")
-    print("PDF 업로드 후 RAG 모드를 활성화하여 사용하세요")
+    print("문서(PDF/TXT/DOCX) 업로드 후 RAG 모드를 활성화하여 사용하세요")
     print("종료하려면 Ctrl+C를 누르세요")
     print("="*60 + "\n")
     

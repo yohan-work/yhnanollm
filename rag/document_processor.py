@@ -6,6 +6,7 @@ PDF 텍스트 추출 및 청킹
 from pathlib import Path
 from typing import List, Dict
 from PyPDF2 import PdfReader
+import docx
 
 
 class DocumentProcessor:
@@ -43,6 +44,48 @@ class DocumentProcessor:
         
         except Exception as e:
             raise Exception(f"PDF 텍스트 추출 실패: {str(e)}")
+
+    def extract_text_from_txt(self, txt_path: str) -> str:
+        """
+        텍스트 파일에서 텍스트 추출
+        
+        Args:
+            txt_path: 텍스트 파일 경로
+            
+        Returns:
+            추출된 텍스트
+        """
+        try:
+            with open(txt_path, 'r', encoding='utf-8') as f:
+                return f.read().strip()
+        except UnicodeDecodeError:
+            # EUC-KR 등 다른 인코딩 시도
+            try:
+                with open(txt_path, 'r', encoding='euc-kr') as f:
+                    return f.read().strip()
+            except Exception as e:
+                raise Exception(f"텍스트 파일 인코딩 오류: {str(e)}")
+        except Exception as e:
+            raise Exception(f"텍스트 파일 읽기 실패: {str(e)}")
+
+    def extract_text_from_docx(self, docx_path: str) -> str:
+        """
+        Word 파일에서 텍스트 추출
+        
+        Args:
+            docx_path: Word 파일 경로
+            
+        Returns:
+            추출된 텍스트
+        """
+        try:
+            doc = docx.Document(docx_path)
+            full_text = []
+            for para in doc.paragraphs:
+                full_text.append(para.text)
+            return '\n'.join(full_text).strip()
+        except Exception as e:
+            raise Exception(f"Word 파일 텍스트 추출 실패: {str(e)}")
     
     def chunk_text(self, text: str, filename: str) -> List[Dict[str, str]]:
         """
@@ -93,22 +136,33 @@ class DocumentProcessor:
         
         return chunks
     
-    def process_pdf(self, pdf_path: str) -> List[Dict[str, str]]:
+    def process_document(self, file_path: str) -> List[Dict[str, str]]:
         """
-        PDF 처리 (추출 + 청킹)
+        문서 처리 (추출 + 청킹)
+        지원 형식: .pdf, .txt, .docx
         
         Args:
-            pdf_path: PDF 파일 경로
+            file_path: 파일 경로
             
         Returns:
             처리된 청크 리스트
         """
-        filename = Path(pdf_path).name
+        path = Path(file_path)
+        filename = path.name
+        extension = path.suffix.lower()
         
-        print(f"PDF 처리 중: {filename}")
+        print(f"문서 처리 중: {filename} ({extension})")
         
         # 텍스트 추출
-        text = self.extract_text_from_pdf(pdf_path)
+        if extension == '.pdf':
+            text = self.extract_text_from_pdf(file_path)
+        elif extension == '.txt':
+            text = self.extract_text_from_txt(file_path)
+        elif extension == '.docx':
+            text = self.extract_text_from_docx(file_path)
+        else:
+            raise ValueError(f"지원하지 않는 파일 형식입니다: {extension}")
+            
         print(f"텍스트 추출 완료: {len(text)} 문자")
         
         # 청킹
