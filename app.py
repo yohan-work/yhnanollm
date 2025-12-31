@@ -7,7 +7,7 @@ import gradio as gr
 from pathlib import Path
 import shutil
 from chat import LocalLLMChat
-from rag import DocumentProcessor, VectorStore, RAGChain, DocumentManager
+from rag import DocumentProcessor, VectorStore, RAGChain, DocumentManager, HybridRetriever
 from rag.config import RAGConfig, get_preset, list_presets
 from rag.prompts import list_templates
 
@@ -19,11 +19,12 @@ rag_chain = None
 doc_processor = None
 doc_manager = None
 current_config = None
+hybrid_retriever = None
 
 
 def initialize_system(config: RAGConfig = None):
     """시스템 초기화 (모델 + RAG)"""
-    global llm_chat, vector_store, rag_chain, doc_processor, doc_manager, current_config
+    global llm_chat, vector_store, rag_chain, doc_processor, doc_manager, current_config, hybrid_retriever
     
     # 설정 로드 또는 기본값 사용
     if config is None:
@@ -60,8 +61,17 @@ def initialize_system(config: RAGConfig = None):
     )
     vector_store = VectorStore(persist_directory=config.persist_directory)
     doc_manager = DocumentManager(metadata_path=config.metadata_path)
+    
+    # Hybrid Retriever 초기화
+    hybrid_retriever = HybridRetriever(vector_store)
+    # 기존 문서가 있다면 BM25 인덱스 빌드 필요 (하지만 VectorStore에서 원본 텍스트를 전부 가져오긴 어려울 수 있음)
+    # 현재 구조상 업로드 시점에만 BM25 빌드됨.
+    # 개선: VectorStore에 저장된 모든 문서를 불러와서 BM25 빌드하는 기능 필요하지만,
+    # ChromaDB에서 모든 데이터 가져오는 건 비효율적일 수 있음.
+    # 일단은 업로드 시점에 추가하는 방식으로 진행하고, 추후 개선.
+    
     rag_chain = RAGChain(
-        vector_store=vector_store,
+        retriever=hybrid_retriever,
         llm_chat=llm_chat,
         document_manager=doc_manager,
         top_k=config.top_k,
@@ -109,6 +119,11 @@ def upload_file(file):
         print(f"   ⏳ 잠시만 기다려주세요 (청크가 많으면 시간이 걸릴 수 있습니다)")
         vector_store.add_documents(chunks)
         print(f"   ✓ 벡터 DB 저장 완료")
+        
+        # Hybrid Retriever에 추가
+        print(f"\n BM25 인덱싱 중...")
+        hybrid_retriever.add_documents(chunks)
+        print(f"   ✓ BM25 인덱싱 완료")
         
         # 메타데이터 저장
         print(f"\n 메타데이터 저장")
@@ -249,6 +264,10 @@ def clear_all_documents():
     try:
         # 벡터 DB 초기화
         vector_store.clear()
+        
+        # Hybrid Retriever 초기화
+        if hybrid_retriever:
+            hybrid_retriever.clear()
         
         # 메타데이터 초기화
         doc_manager.clear_all()
