@@ -69,7 +69,7 @@ class VectorStore:
         
         print(f"{len(chunks)}개 청크 저장 완료")
     
-    def search(self, query: str, top_k: int = 3) -> Dict:
+    def search(self, query: str, top_k: int = 3, **kwargs) -> Dict:
         """
         질문과 유사한 문서 검색
         

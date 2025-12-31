@@ -7,10 +7,11 @@ from typing import Optional
 from .prompts import get_prompt_template, format_prompt
 
 
+
 class RAGChain:
     def __init__(
         self, 
-        vector_store, 
+        retriever, 
         llm_chat, 
         document_manager=None, 
         top_k: int = 3,
@@ -21,14 +22,14 @@ class RAGChain:
         RAG 체인 초기화
         
         Args:
-            vector_store: VectorStore 인스턴스
+            retriever: HybridRetriever 인스턴스 (또는 호환되는 retriever)
             llm_chat: LocalLLMChat 인스턴스
             document_manager: DocumentManager 인스턴스 (선택)
             top_k: 검색할 문서 수
             prompt_template: 프롬프트 템플릿 이름
             similarity_threshold: 유사도 임계값 (0.0~1.0)
         """
-        self.vector_store = vector_store
+        self.retriever = retriever
         self.llm_chat = llm_chat
         self.document_manager = document_manager
         self.top_k = top_k
@@ -51,7 +52,7 @@ class RAGChain:
     
     def search_documents(self, question: str) -> tuple[str, list, list]:
         """
-        질문과 관련된 문서 검색
+        질문과 관련된 문서 검색 (Hybrid)
         
         Args:
             question: 사용자 질문
@@ -59,38 +60,28 @@ class RAGChain:
         Returns:
             (컨텍스트 문자열, 메타데이터 리스트, 유사도 점수 리스트)
         """
-        # 벡터 DB에서 유사 문서 검색
-        results = self.vector_store.search(question, top_k=self.top_k)
-        
-        if not results['documents'] or len(results['documents'][0]) == 0:
-            return None, [], []
-        
-        # 검색된 문서들을 하나의 컨텍스트로 결합
-        documents = results['documents'][0]
-        metadatas = results['metadatas'][0] if results['metadatas'] else []
-        distances = results['distances'][0] if results['distances'] else []
-        
-        # 유사도 임계값 필터링 (distance가 낮을수록 유사함)
-        # ChromaDB는 코사인 거리를 사용 (0에 가까울수록 유사)
-        filtered_docs = []
-        filtered_metas = []
-        filtered_distances = []
-        
-        for doc, meta, dist in zip(documents, metadatas, distances):
-            # 거리가 임계값보다 낮으면 (유사하면) 포함
-            if dist <= (1.0 - self.similarity_threshold):
-                filtered_docs.append(doc)
-                filtered_metas.append(meta)
-                filtered_distances.append(dist)
+        # 하이브리드 검색 수행
+        filtered_docs, stats = self.retriever.search(
+            question, 
+            top_k=self.top_k, 
+            similarity_threshold=self.similarity_threshold
+        )
         
         if not filtered_docs:
             return None, [], []
         
+        # 메타데이터 추출
+        filtered_metas = [doc.get('metadata', {}) for doc in filtered_docs]
+        filtered_distances = [doc.get('distance', 0.0) for doc in filtered_docs] # Hybrid에서는 distance가 모호함
+        filtered_texts = [doc.get('text', '') for doc in filtered_docs]
+        
         # 컨텍스트 생성 (출처 포함)
         context_parts = []
-        for idx, (doc, meta) in enumerate(zip(filtered_docs, filtered_metas), 1):
+        for idx, (text, meta) in enumerate(zip(filtered_texts, filtered_metas), 1):
             source = meta.get('filename', 'Unknown') if meta else 'Unknown'
-            context_parts.append(f"[출처 {idx}: {source}]\n{doc}")
+            # 페이지 정보가 있으면 추가
+            # Note: 현재 메타데이터 구조에는 페이지 정보가 없을 수 있음 (chunk_id 등)
+            context_parts.append(f"[출처 {idx}: {source}]\n{text}")
         
         context = "\n\n".join(context_parts)
         
@@ -110,7 +101,12 @@ class RAGChain:
         try:
             print(f"\n[RAG] 답변 생성 시작 - RAG 모드: {use_rag}")
             
-            if not use_rag or self.vector_store.get_document_count() == 0:
+            # 문서가 없으면 기본 모드 (retriever가 vector_store 접근 가능하다고 가정하거나, doc_manager 사용)
+            doc_count = 0
+            if hasattr(self.retriever, 'vector_store'):
+                doc_count = self.retriever.vector_store.get_document_count()
+            
+            if not use_rag or doc_count == 0:
                 # RAG 미사용 또는 문서 없음 - 기본 모드
                 print(f"[RAG] 기본 모드로 답변 생성")
                 answer = self.llm_chat.chat(question)
