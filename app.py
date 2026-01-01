@@ -59,16 +59,45 @@ def initialize_system(config: RAGConfig = None):
         chunk_size=config.chunk_size,
         chunk_overlap=config.chunk_overlap
     )
-    vector_store = VectorStore(persist_directory=config.persist_directory)
+    vector_store = VectorStore(
+        persist_directory=config.persist_directory,
+        embedding_model=config.embedding_model
+    )
     doc_manager = DocumentManager(metadata_path=config.metadata_path)
     
     # Hybrid Retriever 초기화
     hybrid_retriever = HybridRetriever(vector_store)
-    # 기존 문서가 있다면 BM25 인덱스 빌드 필요 (하지만 VectorStore에서 원본 텍스트를 전부 가져오긴 어려울 수 있음)
-    # 현재 구조상 업로드 시점에만 BM25 빌드됨.
-    # 개선: VectorStore에 저장된 모든 문서를 불러와서 BM25 빌드하는 기능 필요하지만,
-    # ChromaDB에서 모든 데이터 가져오는 건 비효율적일 수 있음.
-    # 일단은 업로드 시점에 추가하는 방식으로 진행하고, 추후 개선.
+    
+    # 기존 문서가 있다면 BM25 인덱스 재빌드
+    print("BM25 인덱스 복구 중...")
+    try:
+        filenames = doc_manager.get_filenames()
+        if filenames:
+            all_chunks = []
+            print(f"  - {len(filenames)}개 문서 로드 중...")
+            for filename in filenames:
+                # VectorStore에서 문서 청크 가져오기
+                doc_data = vector_store.get_documents_by_filename(filename)
+                
+                # 포맷 변환 (VectorStore 반환값 -> Chunk List)
+                if doc_data['ids']:
+                    for i in range(len(doc_data['ids'])):
+                        chunk = {
+                            'text': doc_data['documents'][i],
+                            'metadata': doc_data['metadatas'][i]
+                        }
+                        all_chunks.append(chunk)
+            
+            if all_chunks:
+                hybrid_retriever.add_documents(all_chunks)
+                print(f"  ✅ {len(all_chunks)}개 청크로 BM25 인덱스 재빌드 완료")
+            else:
+                print("  ⚠️ 저장된 청크를 찾을 수 없습니다.")
+        else:
+            print("  ℹ️ 저장된 문서가 없습니다.")
+            
+    except Exception as e:
+        print(f"  ❌ BM25 인덱스 복구 실패: {str(e)}")
     
     rag_chain = RAGChain(
         retriever=hybrid_retriever,
