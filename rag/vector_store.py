@@ -10,14 +10,16 @@ import hashlib
 
 
 class VectorStore:
-    def __init__(self, persist_directory: str = "chroma_db"):
+    def __init__(self, persist_directory: str = "chroma_db", embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"):
         """
         벡터 스토어 초기화
         
         Args:
             persist_directory: ChromaDB 저장 경로
+            embedding_model: 임베딩 모델 이름
         """
         self.persist_directory = persist_directory
+        self.embedding_model_name = embedding_model
         
         # ChromaDB 클라이언트 생성
         self.client = chromadb.PersistentClient(path=persist_directory)
@@ -29,8 +31,8 @@ class VectorStore:
         )
         
         # 임베딩 모델 로드 (한국어 지원)
-        print("🔄 임베딩 모델 로딩 중...")
-        self.embedder = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+        print(f"🔄 임베딩 모델 로딩 중: {embedding_model}...")
+        self.embedder = SentenceTransformer(embedding_model)
         print("✅ 임베딩 모델 준비 완료")
     
     def add_documents(self, chunks: List[Dict[str, str]]) -> None:

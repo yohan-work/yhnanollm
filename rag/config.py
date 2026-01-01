@@ -22,7 +22,7 @@ class RAGConfig:
     similarity_threshold: float = 0.0  # 유사도 임계값 (0.0~1.0)
     
     # 임베딩 모델
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_model: str = "jhgan/ko-sroberta-multitask"
     
     # 프롬프트 설정
     prompt_template: str = "default"  # default, detailed, step_by_step, concise
