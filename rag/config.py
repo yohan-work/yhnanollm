@@ -24,6 +24,11 @@ class RAGConfig:
     # 임베딩 모델
     embedding_model: str = "jhgan/ko-sroberta-multitask"
     
+    # Reranker 설정 [NEW]
+    use_reranker: bool = True
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    top_k_retrieval: int = 10  # Reranking 전 검색할 후보 수
+    
     # 프롬프트 설정
     prompt_template: str = "default"  # default, detailed, step_by_step, concise
     
