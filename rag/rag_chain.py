@@ -16,7 +16,9 @@ class RAGChain:
         document_manager=None, 
         top_k: int = 3,
         prompt_template: str = "default",
-        similarity_threshold: float = 0.0
+        similarity_threshold: float = 0.0,
+        reranker = None,
+        top_k_retrieval: int = 10
     ):
         """
         RAG 체인 초기화
@@ -25,9 +27,11 @@ class RAGChain:
             retriever: HybridRetriever 인스턴스 (또는 호환되는 retriever)
             llm_chat: LocalLLMChat 인스턴스
             document_manager: DocumentManager 인스턴스 (선택)
-            top_k: 검색할 문서 수
+            top_k: 최종 반환할 문서 수
             prompt_template: 프롬프트 템플릿 이름
             similarity_threshold: 유사도 임계값 (0.0~1.0)
+            reranker: Reranker 인스턴스 (선택)
+            top_k_retrieval: Reranking 전 검색할 후보 수
         """
         self.retriever = retriever
         self.llm_chat = llm_chat
@@ -35,6 +39,8 @@ class RAGChain:
         self.top_k = top_k
         self.prompt_template = prompt_template
         self.similarity_threshold = similarity_threshold
+        self.reranker = reranker
+        self.top_k_retrieval = top_k_retrieval
     
     def format_prompt_with_context(self, question: str, context: str) -> str:
         """
@@ -52,7 +58,7 @@ class RAGChain:
     
     def search_documents(self, question: str) -> tuple[str, list, list]:
         """
-        질문과 관련된 문서 검색 (Hybrid)
+        질문과 관련된 문서 검색 (Hybrid + Reranking)
         
         Args:
             question: 사용자 질문
@@ -60,28 +66,41 @@ class RAGChain:
         Returns:
             (컨텍스트 문자열, 메타데이터 리스트, 유사도 점수 리스트)
         """
-        # 하이브리드 검색 수행
-        filtered_docs, stats = self.retriever.search(
+        # 1. 1차 검색 (Hybrid)
+        # Reranker가 있으면 더 많은 후보를 검색(top_k_retrieval), 없으면 목표 개수(top_k)만 검색
+        search_k = self.top_k_retrieval if self.reranker else self.top_k
+        
+        print(f"  [1차 검색] {search_k}개 후보 검색 중...")
+        candidates, stats = self.retriever.search(
             question, 
-            top_k=self.top_k, 
+            top_k=search_k, 
             similarity_threshold=self.similarity_threshold
         )
         
-        if not filtered_docs:
+        if not candidates:
             return None, [], []
+            
+        # 2. 2차 정렬 (Reranking)
+        if self.reranker:
+            print(f"  [2차 정렬] Cross-Encoder Reranking 수행 중...")
+            filtered_docs, scores = self.reranker.rerank(question, candidates, top_k=self.top_k)
+            # Reranking 점수는 distance와 반대 개념(높을수록 좋음)이지만, 호환성을 위해 distance 리스트 자리에 넣음
+            # 단, 이 점수는 '유사도'이므로 나중에 통계에서 처리할 때 주의 필요
+            filtered_distances = scores
+        else:
+            filtered_docs = candidates
+            filtered_distances = [doc.get('distance', 0.0) for doc in filtered_docs]
         
         # 메타데이터 추출
         filtered_metas = [doc.get('metadata', {}) for doc in filtered_docs]
-        filtered_distances = [doc.get('distance', 0.0) for doc in filtered_docs] # Hybrid에서는 distance가 모호함
         filtered_texts = [doc.get('text', '') for doc in filtered_docs]
         
         # 컨텍스트 생성 (출처 포함)
         context_parts = []
         for idx, (text, meta) in enumerate(zip(filtered_texts, filtered_metas), 1):
             source = meta.get('filename', 'Unknown') if meta else 'Unknown'
-            # 페이지 정보가 있으면 추가
-            # Note: 현재 메타데이터 구조에는 페이지 정보가 없을 수 있음 (chunk_id 등)
-            context_parts.append(f"[출처 {idx}: {source}]\n{text}")
+            score_info = f" (Score: {filtered_distances[idx-1]:.4f})" if self.reranker and idx <= len(filtered_distances) else ""
+            context_parts.append(f"[출처 {idx}: {source}{score_info}]\n{text}")
         
         context = "\n\n".join(context_parts)
         
@@ -129,7 +148,8 @@ class RAGChain:
                 'documents_found': len(metadatas),
                 'avg_distance': sum(distances) / len(distances) if distances else 0,
                 'prompt_template': self.prompt_template,
-                'top_k': self.top_k
+                'top_k': self.top_k,
+                'reranking_applied': bool(self.reranker)
             }
             
             # 검색 통계 업데이트 (DocumentManager가 있는 경우)
@@ -183,6 +203,7 @@ class RAGChain:
         
         print(f"✅ RAG 설정 업데이트:")
         print(f"   - top_k: {self.top_k}")
+        print(f"   - top_k_retrieval: {self.top_k_retrieval}")
         print(f"   - prompt_template: {self.prompt_template}")
         print(f"   - similarity_threshold: {self.similarity_threshold}")
 
