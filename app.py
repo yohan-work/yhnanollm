@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 from chat import LocalLLMChat
 from rag import DocumentProcessor, VectorStore, RAGChain, DocumentManager, HybridRetriever
+from rag.reranker import Reranker  # [NEW] Reranker 임포트
 from rag.config import RAGConfig, get_preset, list_presets
 from rag.prompts import list_templates
 
@@ -20,11 +21,12 @@ doc_processor = None
 doc_manager = None
 current_config = None
 hybrid_retriever = None
+reranker = None  # [NEW]
 
 
 def initialize_system(config: RAGConfig = None):
     """시스템 초기화 (모델 + RAG)"""
-    global llm_chat, vector_store, rag_chain, doc_processor, doc_manager, current_config, hybrid_retriever
+    global llm_chat, vector_store, rag_chain, doc_processor, doc_manager, current_config, hybrid_retriever, reranker
     
     # 설정 로드 또는 기본값 사용
     if config is None:
@@ -98,6 +100,13 @@ def initialize_system(config: RAGConfig = None):
             
     except Exception as e:
         print(f"  ❌ BM25 인덱스 복구 실패: {str(e)}")
+        
+    # Reranker 초기화 [NEW]
+    if config.use_reranker:
+        print("\nReranker 초기화 중...")
+        reranker = Reranker(model_name=config.reranker_model)
+    else:
+        reranker = None
     
     rag_chain = RAGChain(
         retriever=hybrid_retriever,
@@ -105,7 +114,9 @@ def initialize_system(config: RAGConfig = None):
         document_manager=doc_manager,
         top_k=config.top_k,
         prompt_template=config.prompt_template,
-        similarity_threshold=config.similarity_threshold
+        similarity_threshold=config.similarity_threshold,
+        reranker=reranker,
+        top_k_retrieval=config.top_k_retrieval
     )
     print("RAG 시스템 준비 완료!")
 
@@ -209,9 +220,16 @@ def chat_with_rag(message, history, use_rag):
         # 검색 통계 표시
         stats_text = ""
         if stats and use_rag:
+            if stats.get('reranking_applied'):
+                score_label = "평균 점수 (Rerank)"
+                score_value = f"{stats.get('avg_distance', 0):.4f}"
+            else:
+                score_label = "평균 유사도"
+                score_value = f"{1 - stats.get('avg_distance', 0):.2%}"
+                
             stats_text = f"""검색 정보:
 • 검색된 문서: {stats.get('documents_found', 0)}개
-• 평균 유사도: {1 - stats.get('avg_distance', 0):.2%}
+• {score_label}: {score_value}
 • 프롬프트: {stats.get('prompt_template', 'N/A')}
 • Top-K: {stats.get('top_k', 0)}"""
         
