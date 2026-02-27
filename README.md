@@ -11,6 +11,7 @@ Apple Silicon (M3 Pro) 최적화된 로컬 LLM
 - **방법론**: LoRA (Low-Rank Adaptation) + RAG (Retrieval-Augmented Generation)
 - **데이터 형식**: Alpaca JSON
 - **목표**: 짧은 한국어 응답 파인튜닝 + PDF 문서 기반 질의응답
+- **새기능**: 실시간 RAG 파라미터 튜닝 및 최적화 도구
 
 ## 프로젝트 구조
 
@@ -22,14 +23,19 @@ yhnanollm/
 │   └── lora-adapter/           # LoRA 어댑터 가중치 (학습 후)
 ├── scripts/
 │   ├── finetune.py             # LoRA 파인튜닝 스크립트
-│   └── merge_and_test.py       # 어댑터 병합 및 테스트 스크립트
-├── rag/                        # RAG 모듈 (NEW!)
+│   ├── merge_and_test.py       # 어댑터 병합 및 테스트 스크립트
+│   └── tune_rag.py             # RAG 파라미터 자동 튜닝 도구
+├── rag/                        # RAG 모듈
 │   ├── __init__.py
+│   ├── config.py              # RAG 설정 관리
+│   ├── prompts.py             # 프롬프트 템플릿
 │   ├── document_processor.py  # PDF 처리 및 청킹
 │   ├── vector_store.py        # ChromaDB 벡터 DB
-│   └── rag_chain.py           # RAG 로직
+│   └── rag_chain.py           # RAG 로직 (동적 파라미터 지원)
 ├── chat.py                     # CLI 대화형 인터페이스
-├── app.py                      # Gradio 웹 인터페이스 with RAG
+├── app.py                      # Gradio 웹 인터페이스 with RAG 튜닝 UI
+├── test_questions.json         # 튜닝용 테스트 질문
+├── TUNING_GUIDE.md             # RAG 튜닝 완벽 가이드
 ├── requirements.txt            # Python 의존성
 ├── .gitignore
 └── README.md
@@ -61,15 +67,33 @@ python app.py
 
 브라우저에서 **http://localhost:7860** 을 열면 채팅 UI가 나타납니다!
 
-- **PDF 업로드**: 문서를 업로드하여 내용 기반 질의응답
-- **RAG 모드**: 문서 참고 ON/OFF 토글
-- **문서 관리**: 업로드된 문서 확인 및 삭제
+**주요 기능**:
+
+**채팅 탭**:
+
+- PDF 업로드 및 문서 관리
+- RAG 모드 ON/OFF
+- 실시간 검색 통계 확인
+
+**RAG 설정 탭** (NEW!):
+
+- 청크 크기 조정 (200~1000자)
+- Top-K 검색 개수 (1~10개)
+- 유사도 임계값 설정
+- 프롬프트 템플릿 선택 (8가지)
+- 프리셋 빠른 적용
+- 설정 저장/불러오기
+
+**프롬프트 템플릿 탭** (NEW!):
+
+- 사용 가능한 프롬프트 템플릿 정보
 
 **사용 방법**:
 
 1. PDF 파일 업로드
-2. "RAG 모드 (문서 참고)" 체크박스 활성화
-3. 문서 내용에 대해 질문하기!
+2. "RAG 설정" 탭에서 파라미터 조정
+3. "설정 적용" 버튼 클릭
+4. "채팅" 탭에서 테스트!
 
 ### 방법 2: CLI 터미널
 
@@ -193,6 +217,79 @@ mlx_lm.generate \
 | `--learning-rate` | 1e-5   | 학습률                      |
 | `--lora-rank`     | 8      | LoRA 랭크 (낮을수록 가벼움) |
 | `--batch-size`    | 2      | 배치 크기                   |
+
+## 🎯 RAG 파라미터 튜닝 (NEW!)
+
+### 자동 실험 도구
+
+다양한 파라미터 조합을 자동으로 테스트하고 최적값을 찾습니다.
+
+```bash
+# 빠른 테스트 (축소된 파라미터)
+python scripts/tune_rag.py --quick
+
+# 전체 테스트 (모든 조합)
+python scripts/tune_rag.py
+
+# 커스텀 테스트 질문 사용
+python scripts/tune_rag.py --test-questions test_questions.json
+```
+
+**결과 파일**:
+
+- `experiments/tuning_results_YYYYMMDD_HHMMSS.csv`: 모든 조합의 점수
+- `experiments/analysis_YYYYMMDD_HHMMSS.json`: 최적 설정 분석 및 추천
+
+### 주요 파라미터
+
+| 파라미터             | 범위       | 기본값  | 설명           |
+| -------------------- | ---------- | ------- | -------------- |
+| chunk_size           | 200~1000자 | 500     | 문서 청크 크기 |
+| chunk_overlap        | 0~200자    | 50      | 청크 간 중복   |
+| top_k                | 1~10개     | 3       | 검색 문서 개수 |
+| similarity_threshold | 0.0~0.9    | 0.0     | 유사도 필터링  |
+| prompt_template      | 8가지      | default | 프롬프트 전략  |
+
+### 프롬프트 템플릿
+
+- **default**: 균형잡힌 기본 프롬프트
+- **detailed**: 상세한 지시사항 포함
+- **step_by_step**: 단계별 추론
+- **concise**: 간결한 답변
+- **source_aware**: 출처 강조
+- **korean_optimized**: 한국어 최적화
+- **educational**: 교육용 설명
+- **analytical**: 심층 분석
+
+### 프리셋
+
+**default (균형)**:
+
+```
+chunk_size=500, top_k=3, prompt=default
+```
+
+**precise (정확도 우선)**:
+
+```
+chunk_size=300, top_k=2, similarity_threshold=0.3, prompt=detailed
+```
+
+**comprehensive (포괄적)**:
+
+```
+chunk_size=800, top_k=5, prompt=detailed
+```
+
+**fast (빠른 응답)**:
+
+```
+chunk_size=400, top_k=1, prompt=concise
+```
+
+### 상세 가이드
+
+더 자세한 튜닝 방법은 [TUNING_GUIDE.md](TUNING_GUIDE.md)를 참조하세요!
 
 ## 팁 & 트러블슈팅
 
